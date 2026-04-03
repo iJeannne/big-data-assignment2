@@ -1,0 +1,74 @@
+services:
+  cluster-master:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bd_ass2_cluster
+    container_name: cluster-master
+    ports:
+      - "8088:8088"
+      - "4040:4040"
+      - "19888:19888"
+      - "9000:9000"
+      - "9870:9870"
+    volumes:
+      - "./app:/app"
+      - "./config/hadoop/yarn-site.xml:/usr/local/hadoop/etc/hadoop/yarn-site.xml:ro"
+      - "./config/hadoop/mapred-site.xml:/usr/local/hadoop/etc/hadoop/mapred-site.xml:ro"
+    networks:
+      - spark-cluster
+    depends_on:
+      - cluster-slave-1
+      - cassandra-server
+    hostname: cluster-master
+    tty: true
+    working_dir: /app
+    # You can comment the entrypoint to run the script manually inside the container
+    entrypoint: 
+      - bash
+      - /app/app.sh
+    
+  cluster-slave-1:
+    image: bd_ass2_cluster
+    container_name: cluster-slave-1
+    volumes:
+      - "./config/hadoop/yarn-site.xml:/usr/local/hadoop/etc/hadoop/yarn-site.xml:ro"
+      - "./config/hadoop/mapred-site.xml:/usr/local/hadoop/etc/hadoop/mapred-site.xml:ro"
+    networks:
+      - spark-cluster
+    hostname: cluster-slave-1
+    tty: true
+  # cluster-slave-2:
+  #   image: firasj/spark-docker-cluster
+  #   container_name: cluster-slave-2
+  #   networks:
+  #     - spark-cluster
+  #   depends_on:
+  #     - cluster-slave-1
+  #   hostname: cluster-slave-2
+  #   tty: true
+  cassandra-server:
+    image: cassandra
+    container_name: cassandra-server
+    restart: unless-stopped
+    mem_limit: 1g
+    mem_reservation: 512m
+    environment:
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 128M
+    ports:
+      - "7001:7000"
+      - "9042:9042"
+    networks:
+      - spark-cluster
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'DESCRIBE KEYSPACES' >/dev/null 2>&1"]
+      interval: 20s
+      timeout: 10s
+      retries: 12
+      start_period: 60s
+    
+
+networks:
+  spark-cluster:
+    driver: bridge

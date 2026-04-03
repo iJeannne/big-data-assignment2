@@ -1,0 +1,3 @@
+cassandra-driver
+pyspark==3.5.4
+pathvalidate
